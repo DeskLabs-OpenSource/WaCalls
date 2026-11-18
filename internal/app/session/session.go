@@ -234,12 +234,18 @@ func (s *Session) startPairing(ctx context.Context) error {
 				s.setAuth(events.AuthSnapshot{State: "open", Paired: true})
 			case "timeout":
 				s.setAuth(events.AuthSnapshot{State: "logged_out", Paired: false})
-			default:
-				// "error" e os "err-*" do whatsmeow (client-outdated, unexpected-state,
-				// scanned-without-multidevice): o pareamento acabou. Sem isto a sessão fica em
-				// "connecting" para sempre, sem QR e sem log.
+			case "error", "err-client-outdated", "err-unexpected-state", "err-scanned-without-multidevice":
+				// O pareamento acabou com erro. Sem isto a sessão fica em "connecting" para
+				// sempre, sem QR e sem log (o logger do whatsmeow é Noop sem -debug).
 				s.log.Warn("pairing failed", "event", evt.Event, "err", evt.Error)
 				s.setAuth(events.AuthSnapshot{State: "logged_out", Paired: false})
+			case "passkey-request":
+				// O whatsmeow espera SendPasskeyResponse, que o WaCalls não implementa.
+				s.log.Warn("pairing failed: WaCalls does not answer passkey requests", "event", evt.Event)
+				s.setAuth(events.AuthSnapshot{State: "logged_out", Paired: false})
+			default:
+				// passkey-confirmation e eventos de versões futuras do whatsmeow: não encerram.
+				s.log.Info("pairing event ignored", "event", evt.Event)
 			}
 		}
 	}()

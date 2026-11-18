@@ -234,6 +234,12 @@ func (s *Session) startPairing(ctx context.Context) error {
 				s.setAuth(events.AuthSnapshot{State: "open", Paired: true})
 			case "timeout":
 				s.setAuth(events.AuthSnapshot{State: "logged_out", Paired: false})
+			default:
+				// "error" e os "err-*" do whatsmeow (client-outdated, unexpected-state,
+				// scanned-without-multidevice): o pareamento acabou. Sem isto a sessão fica em
+				// "connecting" para sempre, sem QR e sem log.
+				s.log.Warn("pairing failed", "event", evt.Event, "err", evt.Error)
+				s.setAuth(events.AuthSnapshot{State: "logged_out", Paired: false})
 			}
 		}
 	}()
